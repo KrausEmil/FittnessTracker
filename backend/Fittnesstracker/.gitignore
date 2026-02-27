@@ -1,0 +1,4 @@
+node_modules/
+dist/
+fitness.db
+.env

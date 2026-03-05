@@ -14,7 +14,10 @@ final GoRouter _router = GoRouter(
     GoRoute(path: '/', builder: (context, state) => const MainShell()),
     GoRoute(
       path: '/plan-detail',
-      builder: (context, state) => const PlanDetailScreen(),
+      builder: (context, state) {
+        final planId = state.extra as int?;
+        return PlanDetailScreen(planId: planId ?? 0);
+      },
     ),
     GoRoute(
       path: '/workout-session',

@@ -29,10 +29,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
   Timer? _restTimer;
   bool _isResting = false;
 
-  late AnimationController _checkController;
-  late Animation<double> _checkScale;
-  late Animation<double> _checkOpacity;
-
   late AnimationController _confettiController;
   List<_ConfettiParticle> _confettiParticles = [];
   bool _showConfetti = false;
@@ -49,24 +45,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
   }
 
   void _initAnimations() {
-    _checkController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _checkScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.3), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
-    ]).animate(
-      CurvedAnimation(parent: _checkController, curve: Curves.easeOut),
-    );
-    _checkOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(
-      CurvedAnimation(parent: _checkController, curve: Curves.easeInOut),
-    );
-
     _confettiController = AnimationController(
       duration: const Duration(milliseconds: 2500),
       vsync: this,
@@ -100,7 +78,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
     _elapsedTimer?.cancel();
     _restTimer?.cancel();
     _stopwatch.stop();
-    _checkController.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -147,11 +124,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
     });
   }
 
-  void _playCheckAnimation() {
-    _checkController.reset();
-    _checkController.forward();
-  }
-
   void _startConfetti() {
     _generateConfetti();
     setState(() => _showConfetti = true);
@@ -162,7 +134,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
   }
 
   void _completeSet() {
-    _playCheckAnimation();
     Map<String, dynamic> exercise = _exercises[_currentExerciseIndex];
     int totalSets = (exercise['sets'] as num?)?.toInt() ?? 3;
 
@@ -300,7 +271,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
                 ],
               ),
             ),
-            _buildCheckOverlay(),
             if (_showConfetti) _buildConfettiOverlay(),
           ],
         ),
@@ -540,40 +510,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
     );
   }
 
-  Widget _buildCheckOverlay() {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: _checkController,
-          builder: (context, child) {
-            if (!_checkController.isAnimating) return const SizedBox.shrink();
-            return Center(
-              child: Opacity(
-                opacity: _checkOpacity.value,
-                child: Transform.scale(
-                  scale: _checkScale.value,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: const BoxDecoration(
-                      color: Color(0xE64CAF50),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 60,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _buildConfettiOverlay() {
     return Positioned.fill(
       child: IgnorePointer(
@@ -654,20 +590,26 @@ class _ConfettiParticle {
   final double wobbleSpeed;
 
   static const _colors = [
-    Colors.red, Colors.blue, Colors.green, Colors.amber,
-    Colors.purple, Colors.orange, Colors.pink, Colors.cyan,
+    Colors.red,
+    Colors.blue,
+    Colors.green,
+    Colors.amber,
+    Colors.purple,
+    Colors.orange,
+    Colors.pink,
+    Colors.cyan,
   ];
 
   _ConfettiParticle(Random random)
-      : x = random.nextDouble(),
-        startY = -random.nextDouble() * 0.3,
-        speed = 0.5 + random.nextDouble() * 0.5,
-        size = 6 + random.nextDouble() * 8,
-        color = _colors[random.nextInt(_colors.length)],
-        rotation = random.nextDouble() * 2 * pi,
-        rotationSpeed = (random.nextDouble() - 0.5) * 4,
-        wobbleAmount = 0.02 + random.nextDouble() * 0.04,
-        wobbleSpeed = 2 + random.nextDouble() * 3;
+    : x = random.nextDouble(),
+      startY = -random.nextDouble() * 0.3,
+      speed = 0.5 + random.nextDouble() * 0.5,
+      size = 6 + random.nextDouble() * 8,
+      color = _colors[random.nextInt(_colors.length)],
+      rotation = random.nextDouble() * 2 * pi,
+      rotationSpeed = (random.nextDouble() - 0.5) * 4,
+      wobbleAmount = 0.02 + random.nextDouble() * 0.04,
+      wobbleSpeed = 2 + random.nextDouble() * 3;
 }
 
 class _ConfettiPainter extends CustomPainter {

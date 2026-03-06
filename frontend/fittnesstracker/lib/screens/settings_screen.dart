@@ -80,7 +80,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     divisions: 58,
                     label: _fmtSeconds(_restDuration.toInt()),
                     onChanged: (v) {
-                      // Snap to 5-second increments
                       final snapped = (v / 5).round() * 5;
                       setState(() => _restDuration = snapped.toDouble());
                       _save(snapped.toDouble());

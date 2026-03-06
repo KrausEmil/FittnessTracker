@@ -21,7 +21,10 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/workout-session',
-      builder: (context, state) => const WorkoutSessionScreen(),
+      builder: (context, state) {
+        final plan = state.extra as Map<String, dynamic>;
+        return WorkoutSessionScreen(plan: plan);
+      },
     ),
   ],
 );

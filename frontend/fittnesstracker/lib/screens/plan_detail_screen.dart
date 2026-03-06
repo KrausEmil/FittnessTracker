@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 
 class PlanDetailScreen extends StatefulWidget {
@@ -227,37 +228,62 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
             )
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: exercises.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final ex = exercises[i];
-                  final weight = (ex['weight'] as num?)?.toDouble() ?? 0;
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.fitness_center,
-                        color: Colors.blue,
-                      ),
-                      title: Text(ex['name'] ?? ''),
-                      subtitle: Text(
-                        '${ex['sets']} Sätze x ${ex['repetitions']} Wdh'
-                        '${weight > 0 ? '  •  ${weight.toStringAsFixed(1)} kg' : ''}',
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.remove_circle_outline,
-                          color: Colors.red,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: exercises.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final ex = exercises[i];
+                        final weight = (ex['weight'] as num?)?.toDouble() ?? 0;
+                        return Card(
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.fitness_center,
+                              color: Colors.blue,
+                            ),
+                            title: Text(ex['name'] ?? ''),
+                            subtitle: Text(
+                              '${ex['sets']} Sätze x ${ex['repetitions']} Wdh'
+                              '${weight > 0 ? '  •  ${weight.toStringAsFixed(1)} kg' : ''}',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.remove_circle_outline,
+                                color: Colors.red,
+                              ),
+                              onPressed: () => _removeExercise(
+                                ex['plan_exercise_id'] as int,
+                                ex['name'] as String,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
                         ),
-                        onPressed: () => _removeExercise(
-                          ex['plan_exercise_id'] as int,
-                          ex['name'] as String,
+                        onPressed: () {
+                          context.push('/workout-session', extra: _plan);
+                        },
+                        child: const Text(
+                          'Workout starten',
+                          style: TextStyle(fontSize: 18),
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
     );

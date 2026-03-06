@@ -102,4 +102,18 @@ class ApiService {
       throw Exception('Fehler beim Entfernen der Übung');
     }
   }
+
+  // ──── Workout History ────
+
+  static Future<Map<String, dynamic>> createHistory(int planId) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/history'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'plan_id': planId}),
+    );
+    if (res.statusCode == 201) {
+      return Map<String, dynamic>.from(jsonDecode(res.body));
+    }
+    throw Exception('Fehler beim Speichern des Workouts');
+  }
 }

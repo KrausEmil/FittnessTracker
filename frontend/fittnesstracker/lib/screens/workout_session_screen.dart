@@ -14,7 +14,8 @@ class WorkoutSessionScreen extends StatefulWidget {
   State<WorkoutSessionScreen> createState() => _WorkoutSessionScreenState();
 }
 
-class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
+class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
+    with TickerProviderStateMixin {
   late List<Map<String, dynamic>> _exercises;
   int _currentExerciseIndex = 0;
   int _currentSet = 1;
@@ -28,6 +29,14 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   Timer? _restTimer;
   bool _isResting = false;
 
+  late AnimationController _checkController;
+  late Animation<double> _checkScale;
+  late Animation<double> _checkOpacity;
+
+  late AnimationController _confettiController;
+  List<_ConfettiParticle> _confettiParticles = [];
+  bool _showConfetti = false;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +45,38 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     );
     _loadRestDuration();
     _startElapsedTimer();
+    _initAnimations();
+  }
+
+  void _initAnimations() {
+    _checkController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _checkScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.3), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
+    ]).animate(
+      CurvedAnimation(parent: _checkController, curve: Curves.easeOut),
+    );
+    _checkOpacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
+    ]).animate(
+      CurvedAnimation(parent: _checkController, curve: Curves.easeInOut),
+    );
+
+    _confettiController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
+    _generateConfetti();
+  }
+
+  void _generateConfetti() {
+    final random = Random();
+    _confettiParticles = List.generate(60, (_) => _ConfettiParticle(random));
   }
 
   void _startElapsedTimer() {
@@ -59,6 +100,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     _elapsedTimer?.cancel();
     _restTimer?.cancel();
     _stopwatch.stop();
+    _checkController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -104,7 +147,22 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     });
   }
 
+  void _playCheckAnimation() {
+    _checkController.reset();
+    _checkController.forward();
+  }
+
+  void _startConfetti() {
+    _generateConfetti();
+    setState(() => _showConfetti = true);
+    _confettiController.reset();
+    _confettiController.forward().then((_) {
+      if (mounted) setState(() => _showConfetti = false);
+    });
+  }
+
   void _completeSet() {
+    _playCheckAnimation();
     Map<String, dynamic> exercise = _exercises[_currentExerciseIndex];
     int totalSets = (exercise['sets'] as num?)?.toInt() ?? 3;
 
@@ -137,6 +195,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       } catch (_) {}
     }
 
+    if (!mounted) return;
+
+    _startConfetti();
+    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
     showDialog(
@@ -219,22 +281,28 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
             onPressed: _confirmQuit,
           ),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildElapsedTime(),
-              const SizedBox(height: 20),
-              _buildRestTimer(),
-              const SizedBox(height: 24),
-              _buildExerciseInfo(),
-              const Spacer(),
-              _buildProgressDots(),
-              const SizedBox(height: 12),
-              _buildNextSetInfo(),
-              const SizedBox(height: 16),
-              _buildCompleteButton(),
-            ],
-          ),
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  _buildElapsedTime(),
+                  const SizedBox(height: 20),
+                  _buildRestTimer(),
+                  const SizedBox(height: 24),
+                  _buildExerciseInfo(),
+                  const Spacer(),
+                  _buildProgressDots(),
+                  const SizedBox(height: 12),
+                  _buildNextSetInfo(),
+                  const SizedBox(height: 16),
+                  _buildCompleteButton(),
+                ],
+              ),
+            ),
+            _buildCheckOverlay(),
+            if (_showConfetti) _buildConfettiOverlay(),
+          ],
         ),
       ),
     );
@@ -318,9 +386,23 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
 
     return Column(
       children: [
-        Text(
-          exercise['name'] ?? '',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.3),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: Text(
+            exercise['name'] ?? '',
+            key: ValueKey('exercise_$_currentExerciseIndex'),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -382,10 +464,12 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
             dotColor = Colors.grey.shade300;
           }
 
-          return Container(
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: 12,
-            height: 12,
+            width: index == _currentExerciseIndex ? 14 : 12,
+            height: index == _currentExerciseIndex ? 14 : 12,
             decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
           );
         }),
@@ -455,6 +539,59 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       ),
     );
   }
+
+  Widget _buildCheckOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _checkController,
+          builder: (context, child) {
+            if (!_checkController.isAnimating) return const SizedBox.shrink();
+            return Center(
+              child: Opacity(
+                opacity: _checkOpacity.value,
+                child: Transform.scale(
+                  scale: _checkScale.value,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      color: Color(0xE64CAF50),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 60,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfettiOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _confettiController,
+          builder: (context, child) {
+            return CustomPaint(
+              size: Size.infinite,
+              painter: _ConfettiPainter(
+                particles: _confettiParticles,
+                progress: _confettiController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _CircularTimerPainter extends CustomPainter {
@@ -503,4 +640,70 @@ class _CircularTimerPainter extends CustomPainter {
   bool shouldRepaint(covariant _CircularTimerPainter oldPainter) {
     return oldPainter.progress != progress;
   }
+}
+
+class _ConfettiParticle {
+  final double x;
+  final double startY;
+  final double speed;
+  final double size;
+  final Color color;
+  final double rotation;
+  final double rotationSpeed;
+  final double wobbleAmount;
+  final double wobbleSpeed;
+
+  static const _colors = [
+    Colors.red, Colors.blue, Colors.green, Colors.amber,
+    Colors.purple, Colors.orange, Colors.pink, Colors.cyan,
+  ];
+
+  _ConfettiParticle(Random random)
+      : x = random.nextDouble(),
+        startY = -random.nextDouble() * 0.3,
+        speed = 0.5 + random.nextDouble() * 0.5,
+        size = 6 + random.nextDouble() * 8,
+        color = _colors[random.nextInt(_colors.length)],
+        rotation = random.nextDouble() * 2 * pi,
+        rotationSpeed = (random.nextDouble() - 0.5) * 4,
+        wobbleAmount = 0.02 + random.nextDouble() * 0.04,
+        wobbleSpeed = 2 + random.nextDouble() * 3;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_ConfettiParticle> particles;
+  final double progress;
+
+  _ConfettiPainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in particles) {
+      final y = p.startY + progress * p.speed * 1.5;
+      if (y > 1.2) continue;
+
+      final x = p.x + sin(progress * p.wobbleSpeed * 2 * pi) * p.wobbleAmount;
+      final opacity = progress > 0.7 ? (1.0 - (progress - 0.7) / 0.3) : 1.0;
+
+      final paint = Paint()
+        ..color = p.color.withValues(alpha: opacity.clamp(0.0, 1.0));
+
+      canvas.save();
+      canvas.translate(x * size.width, y * size.height);
+      canvas.rotate(p.rotation + progress * p.rotationSpeed);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: p.size,
+          height: p.size * 0.6,
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter old) =>
+      old.progress != progress;
 }

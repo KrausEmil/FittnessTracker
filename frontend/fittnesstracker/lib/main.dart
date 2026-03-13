@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/home_screen.dart';
@@ -8,42 +9,43 @@ import 'screens/add_exercise_screen.dart';
 import 'screens/plan_detail_screen.dart';
 import 'screens/workout_session_screen.dart';
 import 'screens/settings_screen.dart';
+import 'state/app_state.dart';
 import 'theme/app_theme_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final savedTheme = normalizeThemeIndex(prefs.getInt('theme_index') ?? 0);
-  runApp(MainApp(initialThemeIndex: savedTheme));
+  final savedRestDuration = prefs.getInt('rest_duration') ?? 60;
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AppState(
+        initialThemeIndex: savedTheme,
+        initialRestDuration: savedRestDuration,
+      ),
+      child: const MainApp(),
+    ),
+  );
 }
 
 class MainApp extends StatefulWidget {
-  final int initialThemeIndex;
-
-  const MainApp({super.key, required this.initialThemeIndex});
+  const MainApp({super.key});
 
   @override
   State<MainApp> createState() => _MainAppState();
 }
 
 class _MainAppState extends State<MainApp> {
-  static const _themePreferenceKey = 'theme_index';
-
-  late int _themeIndex;
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
-    _themeIndex = normalizeThemeIndex(widget.initialThemeIndex);
     _router = GoRouter(
       initialLocation: '/',
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) =>
-              MainShell(onThemeChanged: _setThemeIndex),
-        ),
+        GoRoute(path: '/', builder: (context, state) => const MainShell()),
         GoRoute(
           path: '/plan-detail',
           builder: (context, state) {
@@ -62,29 +64,20 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
-  Future<void> _setThemeIndex(int newIndex) async {
-    final normalized = normalizeThemeIndex(newIndex);
-    if (normalized != _themeIndex) {
-      setState(() => _themeIndex = normalized);
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_themePreferenceKey, normalized);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeIndex = context.select<AppState, int>(
+      (state) => state.themeIndex,
+    );
     return MaterialApp.router(
       routerConfig: _router,
-      theme: buildAppTheme(_themeIndex),
+      theme: buildAppTheme(themeIndex),
     );
   }
 }
 
 class MainShell extends StatefulWidget {
-  final ValueChanged<int> onThemeChanged;
-
-  const MainShell({super.key, required this.onThemeChanged});
+  const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -99,7 +92,7 @@ class _MainShellState extends State<MainShell> {
       const HomeScreen(),
       const AddExerciseScreen(),
       const PlansScreen(),
-      SettingsScreen(onThemeChanged: widget.onThemeChanged),
+      const SettingsScreen(),
     ];
 
     return Scaffold(

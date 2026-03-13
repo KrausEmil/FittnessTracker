@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+
+import '../state/app_state.dart';
 import '../services/api_service.dart';
 
 class WorkoutSessionScreen extends StatefulWidget {
@@ -39,7 +41,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
     _exercises = List<Map<String, dynamic>>.from(
       (widget.plan['exercises'] as List?) ?? [],
     );
-    _loadRestDuration();
     _startElapsedTimer();
     _initAnimations();
   }
@@ -66,13 +67,6 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
     });
   }
 
-  Future<void> _loadRestDuration() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _restDuration = prefs.getInt('rest_duration') ?? 60;
-    });
-  }
-
   @override
   void dispose() {
     _elapsedTimer?.cancel();
@@ -95,9 +89,12 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
   }
 
   void _startRestTimer() {
+    final configuredRestDuration = context.read<AppState>().restDuration;
+
     setState(() {
+      _restDuration = configuredRestDuration;
       _isResting = true;
-      _restTimeLeft = _restDuration;
+      _restTimeLeft = configuredRestDuration;
     });
 
     _restTimer?.cancel();

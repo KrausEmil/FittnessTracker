@@ -1,49 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+
+import '../state/app_state.dart';
 import '../theme/app_theme_options.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final ValueChanged<int> onThemeChanged;
-
-  const SettingsScreen({super.key, required this.onThemeChanged});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _restDurationKey = 'rest_duration';
-  static const _themeIndexKey = 'theme_index';
-
   double _restDuration = 60;
-  int _themeIndex = 0;
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _restDuration = (prefs.getInt(_restDurationKey) ?? 60).toDouble();
-      _themeIndex = normalizeThemeIndex(prefs.getInt(_themeIndexKey) ?? 0);
-    });
-  }
-
-  Future<void> _save(double value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_restDurationKey, value.toInt());
-  }
-
-  Future<void> _saveTheme(int index) async {
-    final normalized = normalizeThemeIndex(index);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_themeIndexKey, normalized);
-    widget.onThemeChanged(normalized);
-    if (!mounted) return;
-    setState(() => _themeIndex = normalized);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _restDuration = context.read<AppState>().restDuration.toDouble();
+    _initialized = true;
   }
 
   String _fmtSeconds(int s) {
@@ -56,6 +33,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final themeIndex = appState.themeIndex;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Einstellungen')),
       body: ListView(
@@ -102,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                     onChangeEnd: (v) async {
                       final snapped = (v / 5).round() * 5;
-                      await _save(snapped.toDouble());
+                      await appState.setRestDuration(snapped);
                     },
                   ),
                   Row(
@@ -150,10 +130,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   RadioGroup<int>(
-                    groupValue: _themeIndex,
+                    groupValue: themeIndex,
                     onChanged: (value) async {
                       if (value == null) return;
-                      await _saveTheme(value);
+                      await appState.setThemeIndex(value);
                     },
                     child: Column(
                       children: List.generate(appThemeOptions.length, (index) {

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String _baseUrl = 'http://localhost:3000/api';
+  static const String _baseUrl = 'http://10.0.2.2:3000/api';
 
   // ──── Exercises ────
 
@@ -104,6 +104,14 @@ class ApiService {
   }
 
   // ──── Workout History ────
+
+  static Future<List<Map<String, dynamic>>> getHistory() async {
+    final res = await http.get(Uri.parse('$_baseUrl/history'));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body));
+    }
+    throw Exception('Fehler beim Laden der History');
+  }
 
   static Future<Map<String, dynamic>> createHistory(int planId) async {
     final res = await http.post(

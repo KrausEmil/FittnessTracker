@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_theme_options.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final ValueChanged<int> onThemeChanged;
+
+  const SettingsScreen({super.key, required this.onThemeChanged});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const _restDurationKey = 'rest_duration';
+  static const _themeIndexKey = 'theme_index';
+
   double _restDuration = 60;
+  int _themeIndex = 0;
 
   @override
   void initState() {
@@ -20,13 +27,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _restDuration = (prefs.getInt('rest_duration') ?? 60).toDouble();
+      _restDuration = (prefs.getInt(_restDurationKey) ?? 60).toDouble();
+      _themeIndex = normalizeThemeIndex(prefs.getInt(_themeIndexKey) ?? 0);
     });
   }
 
   Future<void> _save(double value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('rest_duration', value.toInt());
+    await prefs.setInt(_restDurationKey, value.toInt());
+  }
+
+  Future<void> _saveTheme(int index) async {
+    final normalized = normalizeThemeIndex(index);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_themeIndexKey, normalized);
+    widget.onThemeChanged(normalized);
+    if (!mounted) return;
+    setState(() => _themeIndex = normalized);
   }
 
   String _fmtSeconds(int s) {
@@ -82,7 +99,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (v) {
                       final snapped = (v / 5).round() * 5;
                       setState(() => _restDuration = snapped.toDouble());
-                      _save(snapped.toDouble());
+                    },
+                    onChangeEnd: (v) async {
+                      final snapped = (v / 5).round() * 5;
+                      await _save(snapped.toDouble());
                     },
                   ),
                   Row(
@@ -103,6 +123,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.palette_outlined),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'App-Theme',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  RadioGroup<int>(
+                    groupValue: _themeIndex,
+                    onChanged: (value) async {
+                      if (value == null) return;
+                      await _saveTheme(value);
+                    },
+                    child: Column(
+                      children: List.generate(appThemeOptions.length, (index) {
+                        final option = appThemeOptions[index];
+                        return RadioListTile<int>(
+                          value: index,
+                          title: Text(option.label),
+                          secondary: CircleAvatar(
+                            radius: 10,
+                            backgroundColor: option.seedColor,
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                 ],
               ),

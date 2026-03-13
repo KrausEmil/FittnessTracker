@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/plans_screen.dart';
@@ -7,43 +8,83 @@ import 'screens/add_exercise_screen.dart';
 import 'screens/plan_detail_screen.dart';
 import 'screens/workout_session_screen.dart';
 import 'screens/settings_screen.dart';
+import 'theme/app_theme_options.dart';
 
-final GoRouter _router = GoRouter(
-  initialLocation: '/',
-  routes: [
-    GoRoute(path: '/', builder: (context, state) => const MainShell()),
-    GoRoute(
-      path: '/plan-detail',
-      builder: (context, state) {
-        final planId = state.extra as int?;
-        return PlanDetailScreen(planId: planId ?? 0);
-      },
-    ),
-    GoRoute(
-      path: '/workout-session',
-      builder: (context, state) {
-        final plan = state.extra as Map<String, dynamic>;
-        return WorkoutSessionScreen(plan: plan);
-      },
-    ),
-  ],
-);
-
-void main() {
-  runApp(const MainApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final savedTheme = normalizeThemeIndex(prefs.getInt('theme_index') ?? 0);
+  runApp(MainApp(initialThemeIndex: savedTheme));
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MainApp extends StatefulWidget {
+  final int initialThemeIndex;
+
+  const MainApp({super.key, required this.initialThemeIndex});
+
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  static const _themePreferenceKey = 'theme_index';
+
+  late int _themeIndex;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeIndex = normalizeThemeIndex(widget.initialThemeIndex);
+    _router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) =>
+              MainShell(onThemeChanged: _setThemeIndex),
+        ),
+        GoRoute(
+          path: '/plan-detail',
+          builder: (context, state) {
+            final planId = state.extra as int?;
+            return PlanDetailScreen(planId: planId ?? 0);
+          },
+        ),
+        GoRoute(
+          path: '/workout-session',
+          builder: (context, state) {
+            final plan = state.extra as Map<String, dynamic>;
+            return WorkoutSessionScreen(plan: plan);
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _setThemeIndex(int newIndex) async {
+    final normalized = normalizeThemeIndex(newIndex);
+    if (normalized != _themeIndex) {
+      setState(() => _themeIndex = normalized);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_themePreferenceKey, normalized);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(routerConfig: _router);
+    return MaterialApp.router(
+      routerConfig: _router,
+      theme: buildAppTheme(_themeIndex),
+    );
   }
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final ValueChanged<int> onThemeChanged;
+
+  const MainShell({super.key, required this.onThemeChanged});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -52,17 +93,17 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  final _pages = const [
-    HomeScreen(),
-    AddExerciseScreen(),
-    PlansScreen(),
-    SettingsScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const HomeScreen(),
+      const AddExerciseScreen(),
+      const PlansScreen(),
+      SettingsScreen(onThemeChanged: widget.onThemeChanged),
+    ];
+
     return Scaffold(
-      body: _pages[_index],
+      body: pages[_index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -85,7 +126,7 @@ class _MainShellState extends State<MainShell> {
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            label: 'Einstellungen',
           ),
         ],
       ),

@@ -181,7 +181,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen>
           children: [
             Icon(Icons.emoji_events, color: Colors.amber, size: 28),
             SizedBox(width: 8),
-            Text('Workout abgeschlossen!'),
+            Expanded(child: Text('Workout abgeschlossen!')),
           ],
         ),
         content: Text(
